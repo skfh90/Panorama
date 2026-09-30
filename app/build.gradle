@@ -1,0 +1,77 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 29
+    // Folder name under <sdk>/build-tools. Change this if your SDK has a different revision.
+    buildToolsVersion "29.0.3"
+
+    defaultConfig {
+        applicationId "com.panorama.app"
+        minSdkVersion 29
+        targetSdkVersion 29
+        versionCode 1
+        versionName "1.0"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++11 -frtti -fexceptions"
+                arguments "-DANDROID_STL=c++_shared",
+                        "-DANDROID_TOOLCHAIN=clang",
+                        "-DOpenCV_DIR=" + rootProject.file("third_party/opencv/sdk/native/jni").absolutePath
+            }
+        }
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+    }
+
+    // ndkVersion is intentionally unset so Gradle uses the NDK already installed
+    // on this machine (sdk.dir/ndk/<version> or ndk.dir in local.properties).
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            // SDK package cmake;3.10.2.4988404. AGP 4.1 needs CMake's server mode.
+            version "3.10.2"
+        }
+    }
+
+    packagingOptions {
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst 'lib/x86/libc++_shared.so'
+        pickFirst 'lib/x86_64/libc++_shared.so'
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'androidx.recyclerview:recyclerview:1.1.0'
+}
+
+preBuild.dependsOn ":fetchOpenCvSdk"
+
+afterEvaluate {
+    tasks.matching { task ->
+        String name = task.name.toLowerCase()
+        name.contains("externalnativebuild") || name.contains("cmake")
+    }.each { task ->
+        task.dependsOn ":fetchOpenCvSdk"
+    }
+}

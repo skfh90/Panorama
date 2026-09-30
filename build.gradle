@@ -1,0 +1,68 @@
+// Root build file. Resolves the Android Gradle Plugin from the vendored Maven repo.
+
+buildscript {
+    repositories {
+        // Offline copy of every jar/aar this project resolved. See third_party/m2.
+        maven { url uri("${rootDir}/third_party/m2") }
+        // Used only when a package is missing and the machine has network.
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Android Gradle Plugin 4.1.3 matches Gradle 6.7 and compileSdk 29.
+        classpath 'com.android.tools.build:gradle:4.1.3'
+    }
+}
+
+allprojects {
+    repositories {
+        maven { url uri("${rootDir}/third_party/m2") }
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+
+// The OpenCV Android SDK zip is already in third_party/. This task only unpacks it.
+// It does not download when the zip is present, so the Windows build can stay offline.
+def opencvVersion = "4.5.5"
+def opencvZip = new File(rootDir, "third_party/opencv-${opencvVersion}-android-sdk.zip")
+def opencvRoot = new File(rootDir, "third_party/opencv")
+def opencvMarker = new File(opencvRoot, "sdk/native/jni/OpenCVConfig.cmake")
+
+task fetchOpenCvSdk {
+    outputs.upToDateWhen { opencvMarker.exists() }
+    doLast {
+        if (opencvMarker.exists()) {
+            return
+        }
+        if (!opencvZip.exists() || opencvZip.length() < 50L * 1024L * 1024L) {
+            throw new GradleException(
+                    "Missing ${opencvZip}. The zip is part of this repo; do not delete third_party/.")
+        }
+        def unpacked = new File(buildDir, "opencv-sdk-unpack")
+        delete unpacked
+        copy {
+            from zipTree(opencvZip)
+            into unpacked
+        }
+        def extracted = new File(unpacked, "OpenCV-android-sdk")
+        if (!extracted.isDirectory()) {
+            throw new GradleException("OpenCV SDK archive did not contain OpenCV-android-sdk/")
+        }
+        if (opencvRoot.getParentFile() != null) {
+            opencvRoot.getParentFile().mkdirs()
+        }
+        delete opencvRoot
+        if (!extracted.renameTo(opencvRoot)) {
+            throw new GradleException("Could not move OpenCV SDK to ${opencvRoot}")
+        }
+        if (!opencvMarker.exists()) {
+            throw new GradleException("OpenCV SDK is missing ${opencvMarker}")
+        }
+        logger.lifecycle("OpenCV ${opencvVersion} Android SDK ready.")
+    }
+}

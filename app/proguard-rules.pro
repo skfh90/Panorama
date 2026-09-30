@@ -1,0 +1,1 @@
+-keep class com.panorama.app.stitch.NativeStitcher { native <methods>; }

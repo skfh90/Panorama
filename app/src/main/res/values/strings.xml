@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Panorama</string>
+    <string name="new_capture">New 360 capture</string>
+    <string name="empty_sessions">No panoramas yet. Capture the up, level, and down rows, then build the sphere.</string>
+    <string name="delete">Delete</string>
+    <string name="delete_confirm">Delete this capture and its photos?</string>
+    <string name="add_shots">Add shots</string>
+    <string name="ready_to_view">360 picture ready. Tap to view.</string>
+    <string name="spots_filled_row">%1$d of %2$d spots. Tap to keep capturing.</string>
+    <string name="stitch_failed_row">Stitch failed with %1$d of %2$d spots. Tap to recapture.</string>
+    <string name="close">Close</string>
+    <string name="capture">Capture</string>
+    <string name="build_idle">Build sphere</string>
+    <string name="build_count">Build sphere (%1$d/%2$d)</string>
+    <string name="home_blurb">Turn and tilt to fill the up, level, and down rows, then build one sphere.</string>
+    <string name="building">Building the sphere from your photos. Keep the app open.</string>
+    <string name="camera_required">Camera permission is required to capture a panorama.</string>
+    <string name="no_rotation_sensor">This phone has no rotation sensor, so the grid cannot follow where you point.</string>
+    <string name="grid_hint_north">Top row is the ceiling, middle is the horizon, bottom is the floor. Each column is 30°. N is north. Hold still on a dim dot and it captures itself.</string>
+    <string name="grid_hint_relative">Top row is looking up, middle is straight ahead, bottom is looking down. Each column is 30°. Hold still on a dim dot and it captures itself.</string>
+    <string name="hold_upright">Keep the phone portrait in your hand, then tilt toward a dim dot.</string>
+    <string name="row_up">looking up</string>
+    <string name="row_level">level</string>
+    <string name="row_down">looking down</string>
+    <string name="tilt_up">up</string>
+    <string name="tilt_down">down</string>
+    <string name="tilt_toward">Tilt %1$s to the %2$s row. %3$d of %4$d filled.</string>
+    <string name="spot_in_view">%1$s, spot %2$d is in view. Hold still to capture. %3$d of %4$d filled.</string>
+    <string name="hold_steady">Hold still — capturing %1$s, spot %2$d. %3$d of %4$d filled.</string>
+    <string name="turn_left">left</string>
+    <string name="turn_right">right</string>
+    <string name="turn_to_spot">Turn %1$s toward %2$s, spot %3$d. %4$d of %5$d filled.</string>
+    <string name="all_spots_filled">Every spot on the sphere is filled. Build the picture.</string>
+    <string name="captured_spot">Captured %1$s, spot %2$d.</string>
+    <string name="save_failed">Could not save that photo.</string>
+    <string name="need_more_spots">Capture spots on the up, level, and down rows before building.</string>
+    <string name="missing_panorama">That panorama file is missing.</string>
+    <string name="viewer_drag">Drag to look around the sphere.</string>
+    <string name="viewer_turn">Turn and tilt the phone to look around the sphere. Drag to adjust.</string>
+    <string name="look_with_phone">Look with phone</string>
+    <string name="drag_to_look">Drag to look</string>
+</resources>

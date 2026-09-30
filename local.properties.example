@@ -1,0 +1,4 @@
+# Copy this file to local.properties. Android Studio also writes local.properties for you.
+# Point sdk.dir at the Android SDK on this Windows PC. Escape backslashes.
+# Example: sdk.dir=C\:\\Users\\Alex\\AppData\\Local\\Android\\Sdk
+sdk.dir=C\:\\Users\\YOUR_NAME\\AppData\\Local\\Android\\Sdk
