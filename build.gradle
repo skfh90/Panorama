@@ -40,8 +40,14 @@ task fetchOpenCvSdk {
             return
         }
         if (!opencvZip.exists() || opencvZip.length() < 50L * 1024L * 1024L) {
-            throw new GradleException(
-                    "Missing ${opencvZip}. The zip is part of this repo; do not delete third_party/.")
+            // GitHub cannot store this 224 MB archive. A clone downloads it once.
+            // An offline tree already has the zip and skips this branch.
+            logger.lifecycle("Downloading OpenCV ${opencvVersion} Android SDK (about 230 MB)...")
+            opencvZip.parentFile.mkdirs()
+            exec {
+                commandLine "curl", "-fL", "--retry", "3", "-o", opencvZip.absolutePath,
+                        "https://github.com/opencv/opencv/releases/download/${opencvVersion}/opencv-${opencvVersion}-android-sdk.zip"
+            }
         }
         def unpacked = new File(buildDir, "opencv-sdk-unpack")
         delete unpacked
