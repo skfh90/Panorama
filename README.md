@@ -183,8 +183,9 @@ app/src/main/cpp/
     stitcher.cpp
 app/src/main/res/                  layouts, strings, theme
 third_party/m2/                    Maven repository for an offline Gradle resolve
-third_party/opencv-4.5.5-android-sdk.zip
-                                   OpenCV Android SDK, when present
+third_party/opencv-parts/
+                                   OpenCV 4.5.5 Android SDK split into five parts under 45 MB
+                                   (`opencv-4.5.5-android-sdk.zip.part-aa` through `part-ae`)
 gradle/wrapper/dists/.../gradle-6.7-bin.zip
 dist/panorama-debug.apk            prebuilt debug APK
 local.properties.example           SDK path template
@@ -223,7 +224,7 @@ The tree vendors three things that would otherwise be downloaded:
 
 - Gradle 6.7, at the path the wrapper hashes from `distributionUrl` (`distributionBase=PROJECT`)
 - `third_party/m2`, a Maven layout of the Android Gradle Plugin 4.1.3 graph and the app dependencies (`appcompat` 1.2.0, `recyclerview` 1.1.0, and their transitives)
-- `third_party/opencv-4.5.5-android-sdk.zip`, when the copy you have includes it
+- `third_party/opencv-parts/`, the OpenCV 4.5.5 Android SDK zip split into five parts of at most 45 MB so the archive can be stored in git
 
 JDK, the Android SDK, CMake, and the NDK are machine installs. They are not in git.
 
@@ -237,27 +238,33 @@ JDK, the Android SDK, CMake, and the NDK are machine installs. They are not in g
 gradlew.bat assembleDebug --offline
 ```
 
-The first native build unpacks OpenCV into `third_party/opencv`. The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+The first native build joins `third_party/opencv-parts/opencv-4.5.5-android-sdk.zip.part-aa` through `part-ae` back into `third_party/opencv-4.5.5-android-sdk.zip`, then unpacks that zip into `third_party/opencv`. The joined zip and the unpacked tree are local build products. The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
 
 If `build-tools` or CMake on that PC uses another directory name, change only the matching string in `app/build.gradle`. Point CMake at a 3.10.x SDK package, not at 3.22.
 
 ## Build from a GitHub clone
 
-GitHub rejects blobs larger than 100 MB. The OpenCV Android SDK zip is 224 MB, so it is not in the GitHub history. The Gradle 6.7 zip and `third_party/m2` are.
-
-On a machine with network, the `fetchOpenCvSdk` task downloads the archive on first build:
+GitHub rejects one file larger than 100 MB. The OpenCV Android SDK zip is 224 MB, so it is committed as five parts, each 45 MB or smaller:
 
 ```
-https://github.com/opencv/opencv/releases/download/4.5.5/opencv-4.5.5-android-sdk.zip
+third_party/opencv-parts/opencv-4.5.5-android-sdk.zip.part-aa
+third_party/opencv-parts/opencv-4.5.5-android-sdk.zip.part-ab
+third_party/opencv-parts/opencv-4.5.5-android-sdk.zip.part-ac
+third_party/opencv-parts/opencv-4.5.5-android-sdk.zip.part-ad
+third_party/opencv-parts/opencv-4.5.5-android-sdk.zip.part-ae
 ```
 
-To prepare an offline machine, download that file into `third_party/opencv-4.5.5-android-sdk.zip` before disconnecting, then build with `--offline`.
+`fetchOpenCvSdk` joins those parts in name order before it unpacks. No separate download is required. Checksum of the joined archive:
 
 ```
-gradlew.bat assembleDebug
+SHA-256 404e5a04b2f01833a208857eb192c88f33fdfc66f827ac2a993e4581849b2d08
 ```
 
-Omit `--offline` for that first OpenCV download. Later builds can use `--offline`.
+That is the official `opencv-4.5.5-android-sdk.zip` from the OpenCV 4.5.5 release. If the parts are missing and the machine is online, the same task downloads that release instead.
+
+```
+gradlew.bat assembleDebug --offline
+```
 
 ## Native library
 
@@ -281,7 +288,7 @@ Build sphere needs at least six frames (`MIN_BUILD` in `CaptureActivity`). Filli
 | CMake server error, or NPE in `ServerProtocolV1` | CMake 3.20+ | Install `cmake;3.10.2.4988404` and keep `version "3.10.2"` |
 | NDK location is ambiguous | Several side-by-side NDKs | Set `ndkVersion` to one folder name |
 | `Could not resolve com.android.tools.build:gradle:4.1.3` while offline | Offline mode is off and the machine is rewriting versions, or `third_party/m2` was not checked out | Build with `--offline` from a full checkout |
-| OpenCV zip missing | GitHub clone | Download the 4.5.5 Android SDK zip into `third_party/` (see above) |
+| OpenCV unpack fails | Parts missing or out of order | Keep all five `opencv-4.5.5-android-sdk.zip.part-*` files. The task joins them by filename. |
 | Preview is on its side | A 90° `TextureView` transform was applied on top of an already upright buffer | `CameraController.configureTransform` must not post-rotate in portrait |
 | Build sphere never returns | The old OpenCV `Stitcher` pairwise path | Current `stitcher.cpp` projects from stored headings and returns in seconds |
 
@@ -289,7 +296,7 @@ Build sphere needs at least six frames (`MIN_BUILD` in `CaptureActivity`). Filli
 
 - AndroidX AppCompat 1.2.0 and RecyclerView 1.1.0
 - Android Gradle Plugin 4.1.3 and its Maven dependencies, vendored under `third_party/m2`
-- OpenCV 4.5.5 Android SDK, [Apache License 2.0](https://github.com/opencv/opencv/blob/4.5.5/LICENSE)
+- OpenCV 4.5.5 Android SDK, split under `third_party/opencv-parts/`, [Apache License 2.0](https://github.com/opencv/opencv/blob/4.5.5/LICENSE)
 - Gradle 6.7 binary distribution
 
 OpenCV's static libraries are linked into `libpanorama_stitch.so`. The unpacked SDK tree is produced locally and is not committed.

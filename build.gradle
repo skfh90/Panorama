@@ -26,12 +26,40 @@ task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
-// The OpenCV Android SDK zip is already in third_party/. This task only unpacks it.
-// It does not download when the zip is present, so the Windows build can stay offline.
+// GitHub rejects a single blob over 100 MB. The 224 MB SDK zip is stored as
+// 45 MB parts in third_party/opencv-parts/. This task joins them, or uses a
+// zip that is already on disk, then unpacks. It downloads only if both are missing.
 def opencvVersion = "4.5.5"
 def opencvZip = new File(rootDir, "third_party/opencv-${opencvVersion}-android-sdk.zip")
+def opencvPartsDir = new File(rootDir, "third_party/opencv-parts")
 def opencvRoot = new File(rootDir, "third_party/opencv")
 def opencvMarker = new File(opencvRoot, "sdk/native/jni/OpenCVConfig.cmake")
+
+def joinOpenCvParts = {
+    if (!opencvPartsDir.isDirectory()) {
+        return false
+    }
+    def parts = opencvPartsDir.listFiles()?.findAll { file ->
+        file.isFile() && file.name.startsWith("opencv-${opencvVersion}-android-sdk.zip.part-")
+    }?.sort { it.name }
+    if (parts == null || parts.isEmpty()) {
+        return false
+    }
+    logger.lifecycle("Joining ${parts.size()} OpenCV SDK parts into ${opencvZip.name}...")
+    opencvZip.parentFile.mkdirs()
+    opencvZip.withOutputStream { out ->
+        parts.each { part ->
+            part.withInputStream { input ->
+                byte[] buffer = new byte[1024 * 1024]
+                int read
+                while ((read = input.read(buffer)) != -1) {
+                    out.write(buffer, 0, read)
+                }
+            }
+        }
+    }
+    return opencvZip.isFile() && opencvZip.length() > 50L * 1024L * 1024L
+}
 
 task fetchOpenCvSdk {
     outputs.upToDateWhen { opencvMarker.exists() }
@@ -40,13 +68,13 @@ task fetchOpenCvSdk {
             return
         }
         if (!opencvZip.exists() || opencvZip.length() < 50L * 1024L * 1024L) {
-            // GitHub cannot store this 224 MB archive. A clone downloads it once.
-            // An offline tree already has the zip and skips this branch.
-            logger.lifecycle("Downloading OpenCV ${opencvVersion} Android SDK (about 230 MB)...")
-            opencvZip.parentFile.mkdirs()
-            exec {
-                commandLine "curl", "-fL", "--retry", "3", "-o", opencvZip.absolutePath,
-                        "https://github.com/opencv/opencv/releases/download/${opencvVersion}/opencv-${opencvVersion}-android-sdk.zip"
+            if (!joinOpenCvParts()) {
+                logger.lifecycle("Downloading OpenCV ${opencvVersion} Android SDK (about 230 MB)...")
+                opencvZip.parentFile.mkdirs()
+                exec {
+                    commandLine "curl", "-fL", "--retry", "3", "-o", opencvZip.absolutePath,
+                            "https://github.com/opencv/opencv/releases/download/${opencvVersion}/opencv-${opencvVersion}-android-sdk.zip"
+                }
             }
         }
         def unpacked = new File(buildDir, "opencv-sdk-unpack")
