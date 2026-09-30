@@ -223,7 +223,7 @@ If more than one NDK is installed, set `ndkVersion "<folder name>"` in `app/buil
 The tree vendors three things that would otherwise be downloaded:
 
 - Gradle 6.7, at the path the wrapper hashes from `distributionUrl` (`distributionBase=PROJECT`)
-- `third_party/m2`, a Maven layout of the Android Gradle Plugin 4.1.3 graph and the app dependencies (`appcompat` 1.2.0, `recyclerview` 1.1.0, and their transitives)
+- `third_party/m2`, a Maven layout of the Android Gradle Plugin 4.1.3 graph and the app dependencies (`appcompat` 1.2.0, `recyclerview` 1.1.0, and their transitives). The Windows `aapt2` binary is included as `aapt2-4.1.3-6503028-windows.jar`, because the plugin loads that host-specific jar from Google Maven.
 - `third_party/opencv-parts/`, the OpenCV 4.5.5 Android SDK zip split into five parts of at most 45 MB so the archive can be stored in git
 
 JDK, the Android SDK, CMake, and the NDK are machine installs. They are not in git.
