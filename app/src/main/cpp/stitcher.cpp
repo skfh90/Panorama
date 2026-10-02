@@ -4,6 +4,7 @@
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/stitching.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -135,6 +136,59 @@ Shot MakeShot(const cv::Mat& image, double azimuth_deg, double pitch_deg) {
     return shot;
 }
 
+cv::Mat PlaceOnEquirect(const cv::Mat& pano) {
+    if (pano.empty()) {
+        return cv::Mat();
+    }
+    const int width = std::max(pano.cols, 2);
+    const int height = std::max(2, width / 2);
+    cv::Mat band = pano;
+    if (band.rows > height) {
+        const double scale = static_cast<double>(height) / static_cast<double>(band.rows);
+        cv::resize(band, band, cv::Size(), scale, scale, cv::INTER_AREA);
+    }
+    if (band.rows == height && band.cols == width) {
+        return band;
+    }
+    cv::Mat canvas(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
+    const int x = std::max(0, (width - band.cols) / 2);
+    const int y = std::max(0, (height - band.rows) / 2);
+    const int copy_w = std::min(band.cols, width - x);
+    const int copy_h = std::min(band.rows, height - y);
+    band(cv::Rect(0, 0, copy_w, copy_h)).copyTo(canvas(cv::Rect(x, y, copy_w, copy_h)));
+    return canvas;
+}
+
+cv::Mat RunStitcher(const std::vector<cv::Mat>& images, int* status) {
+    *status = 1;
+    if (images.size() < 2) {
+        return cv::Mat();
+    }
+    try {
+        cv::setNumThreads(2);
+        cv::Ptr<cv::Stitcher> stitcher = cv::Stitcher::create(cv::Stitcher::PANORAMA);
+        stitcher->setPanoConfidenceThresh(0.2);
+        stitcher->setRegistrationResol(0.3);
+        stitcher->setSeamEstimationResol(0.05);
+        stitcher->setCompositingResol(1.0);
+        stitcher->setWaveCorrection(true);
+        stitcher->setWaveCorrectKind(cv::detail::WAVE_CORRECT_HORIZ);
+        cv::Mat pano;
+        const cv::Stitcher::Status code = stitcher->stitch(images, pano);
+        *status = static_cast<int>(code);
+        if (code != cv::Stitcher::OK || pano.empty()) {
+            __android_log_print(ANDROID_LOG_WARN, kTag, "cv::Stitcher status %d", *status);
+            return cv::Mat();
+        }
+        __android_log_print(ANDROID_LOG_INFO, kTag, "cv::Stitcher produced %dx%d", pano.cols, pano.rows);
+        return PlaceOnEquirect(pano);
+    } catch (const cv::Exception& error) {
+        __android_log_print(ANDROID_LOG_ERROR, kTag, "cv::Stitcher: %s", error.what());
+        *status = -2;
+        return cv::Mat();
+    }
+}
+
 bool Covers(const Shot& shot, double azimuth_deg, double pitch_deg) {
     const double azimuth_limit = std::min(
             170.0,
@@ -189,6 +243,27 @@ Java_com_panorama_app_stitch_NativeStitcher_stitch(
         if (shots.size() < 2) {
             return -1;
         }
+
+        std::vector<cv::Mat> stitch_inputs;
+        stitch_inputs.reserve(shots.size());
+        for (const Shot& shot : shots) {
+            stitch_inputs.push_back(shot.image);
+        }
+        int stitch_status = 1;
+        const cv::Mat stitched = RunStitcher(stitch_inputs, &stitch_status);
+        const std::string output = ToString(env, output_path);
+        const std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 90};
+        if (!stitched.empty()) {
+            if (!cv::imwrite(output, stitched, params)) {
+                __android_log_print(ANDROID_LOG_ERROR, kTag, "Could not write %s", output.c_str());
+                return -3;
+            }
+            __android_log_print(ANDROID_LOG_INFO, kTag, "Wrote stitched %s (%dx%d) from %d frames",
+                                output.c_str(), stitched.cols, stitched.rows, static_cast<int>(shots.size()));
+            return 0;
+        }
+        __android_log_print(ANDROID_LOG_WARN, kTag,
+                            "OpenCV stitcher status %d; projecting from stored headings", stitch_status);
 
         cv::Mat accum(kPanoHeight, kPanoWidth, CV_32FC3, cv::Scalar(0, 0, 0));
         cv::Mat weight(kPanoHeight, kPanoWidth, CV_32FC1, cv::Scalar(0));
@@ -248,8 +323,6 @@ Java_com_panorama_app_stitch_NativeStitcher_stitch(
             }
         }
 
-        const std::string output = ToString(env, output_path);
-        const std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 90};
         if (!cv::imwrite(output, pano, params)) {
             __android_log_print(ANDROID_LOG_ERROR, kTag, "Could not write %s", output.c_str());
             return -3;

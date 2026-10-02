@@ -9,6 +9,7 @@
 .externalNativeBuild/
 .cxx/
 /third_party/opencv/
+/third_party/opencv-4.5.5-android-sdk.zip
 gradle/wrapper/dists/**/gradle-6.7/
 gradle/wrapper/dists/**/*.lck
 gradle/wrapper/dists/**/*.ok

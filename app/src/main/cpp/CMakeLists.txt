@@ -13,7 +13,8 @@ if(NOT EXISTS "${OpenCV_DIR}/OpenCVConfig.cmake")
             "Run a Gradle sync so fetchOpenCvSdk can download OpenCV 4.5.5.")
 endif()
 
-find_package(OpenCV REQUIRED core imgproc imgcodecs)
+# stitching is a static library in the Android SDK. libopencv_java4.so does not export it.
+find_package(OpenCV REQUIRED core imgproc imgcodecs features2d flann calib3d stitching)
 
 add_library(panorama_stitch SHARED stitcher.cpp)
 target_compile_options(panorama_stitch PRIVATE -O2)

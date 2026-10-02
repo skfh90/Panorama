@@ -44,7 +44,7 @@ MainActivity
     │     ├─ CaptureGridView           3×12 dot matrix
     │     └─ PanoramaStitcher
     │           └─ NativeStitcher      JNI
-    │                 └─ stitcher.cpp  pose projection (OpenCV imgcodecs/imgproc)
+    │                 └─ stitcher.cpp  cv::Stitcher, then pose projection
     │
     └─ ViewerActivity
           └─ SpherePanoramaView        OpenGL ES 2.0 inside-out sphere
@@ -52,7 +52,7 @@ MainActivity
 
 Work that touches disk or the native compositor runs on the single-thread executor owned by `PanoramaApp`. The UI thread only updates views and starts that work.
 
-The Android Gradle Plugin 4.1.3 Java bindings for OpenCV do not include `org.opencv.stitching.Stitcher`. An earlier build called `cv::Stitcher::create(PANORAMA)` through JNI. Pairwise registration of 36 frames does not finish in acceptable time on a phone, so the shipped compositor does not use that pipeline. It projects each JPEG with the azimuth and pitch that were stored when the frame was captured. OpenCV is still used for decode, scale, and JPEG encode.
+`libopencv_java4.so` in the OpenCV 4.5.5 Android SDK does not export the stitching module, so the app links the static library `opencv_stitching` and calls `cv::Stitcher::create(Stitcher::PANORAMA)` from JNI. Frames are scaled to a 640 px long edge, registered at 0.3 megapixels, and wave-corrected horizontally. A successful stitch is letterboxed onto a 2:1 canvas so the sphere viewer can show it. If registration fails, the same frames are projected from the azimuth and pitch stored at capture.
 
 ## Capture geometry
 
@@ -136,7 +136,7 @@ Files live under `getExternalFilesDir(PICTURES)/session_<id>/`:
 
 `PanoramaStitcher.stitch` reads the frame list, passes paths plus azimuth and pitch into `NativeStitcher.stitch`, and on status 0 marks the session stitched.
 
-`stitcher.cpp` builds a 1600×800 equirectangular image (2:1). For each output pixel:
+`stitcher.cpp` first calls `cv::Stitcher` in panorama mode. When that returns a picture, the bitmap is letterboxed to a 2:1 equirectangular canvas and saved. When it does not, the fallback builds a 1600×800 equirectangular image. For each output pixel of that fallback:
 
 - longitude maps to azimuth across the width
 - latitude maps to pitch, +90° at the top row and −90° at the bottom row
@@ -268,7 +268,7 @@ gradlew.bat assembleDebug --offline
 
 ## Native library
 
-`app/src/main/cpp/CMakeLists.txt` imports OpenCV from `third_party/opencv/sdk/native/jni` after the unpack task. The Android SDK ships Release static libraries only, so Debug, RelWithDebInfo, and MinSizeRel are mapped onto Release. The shared library is `panorama_stitch`. It links OpenCV `core`, `imgproc`, and `imgcodecs`, plus `log`. The JNI symbol is `Java_com_panorama_app_stitch_NativeStitcher_stitch`.
+`app/src/main/cpp/CMakeLists.txt` imports OpenCV from `third_party/opencv/sdk/native/jni` after the unpack task. The Android SDK ships Release static libraries only, so Debug, RelWithDebInfo, and MinSizeRel are mapped onto Release. The shared library is `panorama_stitch`. It links the static OpenCV modules `stitching`, `calib3d`, `features2d`, `flann`, `imgcodecs`, `imgproc`, and `core`, plus `log`. `libopencv_java4.so` does not export `cv::Stitcher`, so the imported `opencv_stitching` static library is what provides it. The JNI symbol is `Java_com_panorama_app_stitch_NativeStitcher_stitch`.
 
 `fetchOpenCvSdk` is a dependency of `preBuild` and of the CMake tasks, so a clean tree unpacks (or downloads) the SDK before `externalNativeBuild`.
 
@@ -290,7 +290,7 @@ Build sphere needs at least six frames (`MIN_BUILD` in `CaptureActivity`). Filli
 | `Could not resolve com.android.tools.build:gradle:4.1.3` while offline | Offline mode is off and the machine is rewriting versions, or `third_party/m2` was not checked out | Build with `--offline` from a full checkout |
 | OpenCV unpack fails | Parts missing or out of order | Keep all five `opencv-4.5.5-android-sdk.zip.part-*` files. The task joins them by filename. |
 | Preview is on its side | A 90° `TextureView` transform was applied on top of an already upright buffer | `CameraController.configureTransform` must not post-rotate in portrait |
-| Build sphere never returns | The old OpenCV `Stitcher` pairwise path | Current `stitcher.cpp` projects from stored headings and returns in seconds |
+| Build sphere is slow, or the sphere looks projected rather than stitched | `cv::Stitcher` registers every captured frame and can fail when overlaps are weak | A successful stitch is letterboxed onto a 2:1 canvas. If registration fails, pose projection still writes the 1600×800 fallback |
 
 ## Third-party components
 
