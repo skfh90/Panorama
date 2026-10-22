@@ -1,7 +1,21 @@
 /**
- * Apply deposit, withdraw, and transfer requests to a copy of account balances.
- * Accounts are 1-based. Processing stops at the first invalid request and
- * returns [-requestId]. A fully valid sequence returns the resulting balances.
+ * Apply deposit, withdraw, and transfer requests in order.
+ *
+ * Balances are copied so the caller's array stays unchanged and a rejected
+ * request is never returned as a half-applied result. Request account numbers
+ * are 1-based: `balances[0]` is account 1.
+ *
+ * Account range is checked before funds. An account outside `1..balances.length`
+ * is invalid even when the named source would have covered `sum`, and a
+ * transfer must not update only one of its two accounts. A withdraw or
+ * transfer that asks for more than the source currently holds is also invalid.
+ * A deposit never fails for insufficient funds.
+ *
+ * Processing stops at the first invalid request. Its 1-based index is returned
+ * as `[-requestId]`, and every later request is ignored. If `i === j` on a
+ * transfer, the account is valid, and its balance covers `sum`, nothing moves:
+ * the same money would leave and return. That transfer is still invalid when
+ * `sum` exceeds the balance.
  *
  * @param {number[]} balances Money in each account. Index 0 is account 1.
  * @param {string[]} requests Requests in the order they should be applied.
@@ -43,6 +57,7 @@ function solution(balances, requests) {
       if (accounts[from - 1] < sum) {
         return [-requestId];
       }
+      // Same-account transfer: the funds check above already passed, so skip the move.
       if (from !== to) {
         accounts[from - 1] -= sum;
         accounts[to - 1] += sum;
